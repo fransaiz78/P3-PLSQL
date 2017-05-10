@@ -1,0 +1,25 @@
+#This file is used by the JNDI FSContext.
+#Tue Mar 14 18:43:42 CET 2017
+jdbc/testdb_ds/RefAddr/4/Encoding=String
+jdbc/testdb_ds/RefAddr/3/Type=networkProtocol
+jdbc/testdb_ds/RefAddr/4/Type=implicitCachingEnabled
+jdbc/testdb_ds/RefAddr/2/Encoding=String
+jdbc/testdb_ds/RefAddr/5/Content=true
+jdbc/testdb_ds/RefAddr/4/Content=true
+jdbc/testdb_ds/RefAddr/5/Type=connectionCachingEnabled
+jdbc/testdb_ds/RefAddr/2/Content=hr
+jdbc/testdb_ds/RefAddr/0/Content=jdbc\:oracle\:thin\:hr/hr@localhost\:1521\:xe
+jdbc/testdb_ds/RefAddr/6/Encoding=String
+jdbc/testdb_ds/RefAddr/0/Encoding=String
+jdbc/testdb_ds/RefAddr/6/Type=connectionCacheProperties
+jdbc/testdb_ds/RefAddr/3/Encoding=String
+jdbc/testdb_ds/RefAddr/0/Type=url
+jdbc/testdb_ds/RefAddr/6/Content={MinLimit\=3, MaxLimit\=10, InitialLimit\=5}
+jdbc/testdb_ds/RefAddr/3/Content=tcp
+jdbc/testdb_ds/RefAddr/1/Encoding=String
+jdbc/testdb_ds/RefAddr/1/Type=userName
+jdbc/testdb_ds/ClassName=oracle.jdbc.pool.OracleDataSource
+jdbc/testdb_ds/FactoryName=oracle.jdbc.pool.OracleDataSourceFactory
+jdbc/testdb_ds/RefAddr/1/Content=hr
+jdbc/testdb_ds/RefAddr/2/Type=passWord
+jdbc/testdb_ds/RefAddr/5/Encoding=String
