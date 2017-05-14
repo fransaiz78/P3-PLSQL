@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import lsi.ubu.util.*;
+import oracle.sql.ARRAY;
+import oracle.sql.ArrayDescriptor;
 
 /**
  * Clase en el que se realizan las transaciones.
@@ -48,8 +50,7 @@ public class FormulasMoleculares {
 		}
 
 		bateriaPruebas();
-		
-		
+
 		System.out.println("\n-----------------------------------------------------------------");
 		System.out.println("    El tratamiento de pruebas se ha realizado correctamente.     \n");
 	}
@@ -70,115 +71,29 @@ public class FormulasMoleculares {
 	public static void insertarMolecula(String nombre, String[] simbolos, int[] nros) throws ChemistryException {
 
 		Connection con = null;
-
-		PreparedStatement pst = null;
-		PreparedStatement pst2 = null;
-		PreparedStatement pst3 = null;
-		PreparedStatement pstExc = null;
-		PreparedStatement pstExc2 = null;
-
-		ResultSet rs = null;
-		ResultSet rsExc = null;
-		ResultSet rsExc2 = null;
-
-		String form = "";
-		int pesoTotal = 0;
-		int insertados = 0;
+		CallableStatement cst = null;
 
 		try {
 			con = pool.getConnection();
 
-			// Comprobamos si ambos arrays son del mismo tamaño.
-			if (simbolos.length != nros.length) {
-				pool.undo(con);
-				throw (new ChemistryException(ChemistryError.TAMAÑOS_INADECUADOS));
-			}
+			ArrayDescriptor des = ArrayDescriptor.createDescriptor("NESTED_TYPE", con);
+			ARRAY array_to_pass_simbolos = new ARRAY(des, con, simbolos);
+			ARRAY array_to_pass_nros = new ARRAY(des, con, nros);
 
-			// Comprobamos si el nombre de la molecula a insertar ya existe.
-			pstExc = con.prepareStatement("SELECT * FROM Moleculas WHERE nombre=?");
-			pstExc.setString(1, nombre);
-			rsExc = pstExc.executeQuery();
+			cst = con.prepareCall("{ call insertarMolecula(?,?,?) }");
 
-			if (rsExc.next()) {
-				pool.undo(con);
-				throw (new ChemistryException(ChemistryError.NOMBRE_DE_MOLECULA_YA_EXISTENTE));
-			}
+			cst.setString(1, nombre);
+			cst.setArray(2, array_to_pass_simbolos);
+			cst.setArray(3, array_to_pass_nros);
 
-			// Calcular formula y sacar pesos.
-			pst = con.prepareStatement("SELECT pesoAtomico FROM Elementos WHERE simbolo=?");
-
-			for (int i = 0; i < simbolos.length; i++) {
-				form = form.concat(simbolos[i]);
-				if (nros[i] > 1) {
-					form = form.concat("" + nros[i]);
-				}
-
-				// Sacamos el peso de ese simbolo y nos creamos un array
-				// auxiliar de los pesos.
-				pst.setString(1, simbolos[i]);
-				rs = pst.executeQuery();
-
-				if (rs.next()) {
-					pesoTotal += rs.getInt(1) * nros[i];
-				} else {
-					pool.undo(con);
-					pool.close(con);
-					pool.close(pst);
-					pool.close(pst2);
-					pool.close(rs);
-					throw (new ChemistryException(ChemistryError.NO_EXISTE_ATOMO));
-				}
-
-			}
-
-			// Comprobar si la formula ya existe.
-			pstExc2 = con.prepareStatement("Select * FROM Moleculas Where formula=?");
-			pstExc2.setString(1, form);
-			rsExc2 = pstExc2.executeQuery();
-			if (rsExc2.next()) {
-				pool.undo(con);
-				throw (new ChemistryException(ChemistryError.FORMULA_YA_EXISTENTE));
-			}
-			// Insertar molecula en Moleculas:
-			pst2 = con.prepareStatement(
-					"INSERT INTO Moleculas(id, nombre, pesoMolecular, formula) values(seq_molId.nextval, ?, ?, ?)");
-			pst2.setString(1, nombre);
-			pst2.setInt(2, pesoTotal);
-			pst2.setString(3, form);
-			insertados = pst2.executeUpdate();
-
-			pst3 = con.prepareStatement(
-					"INSERT INTO Composicion(simbolo, idMolecula, nroAtomos) values(?, seq_molId.currval, ?)");
-			// Relleno Composicion
-			for (int i = 0; i < simbolos.length; i++) {
-
-				pst3.setString(1, simbolos[i]);
-				pst3.setInt(2, nros[i]);
-				insertados += pst3.executeUpdate();
-			}
-
-			if (insertados == 3) {
-				logger.info("La transacion ha ido bien.");
-				con.commit();
-			} else {
-			}
+			cst.execute();
 
 		} catch (SQLException e) {
-			logger.error("La transacion hay que deshacerla.");
-			pool.undo(con);
-			logger.error(e.getLocalizedMessage());
-			e.printStackTrace();
+			System.out.println("------------------------------");
 
 		} finally {
-			logger.debug("Cerrando recursos");
+			pool.close(cst);
 			pool.close(con);
-			pool.close(pst);
-			pool.close(pst2);
-			pool.close(pstExc);
-			pool.close(pstExc2);
-			pool.close(rs);
-			pool.close(rsExc);
-			pool.close(rsExc2);
 		}
 	}
 
@@ -190,20 +105,23 @@ public class FormulasMoleculares {
 	 * @throws ChemistryException
 	 *             Excepcion
 	 */
-	public static void borrarMolecula(String nombreMol) throws ChemistryException {
+	public static void borrarMoleculaNombre(String nombreMol) throws ChemistryException {
 		Connection con = null;
 		CallableStatement cst = null;
-		
+
 		try {
 			con = pool.getConnection();
-			cst = con.prepareCall("{ call borrarMolecula(?) }");
+			cst = con.prepareCall("{ call borrarMoleculaNombre(?) }");
 			cst.setString(1, nombreMol);
-			
+
 			cst.execute();
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			pool.close(cst);
+			pool.close(con);
 		}
 	}
 
@@ -219,39 +137,25 @@ public class FormulasMoleculares {
 	 * @throws ChemistryException
 	 *             Excepcion
 	 */
-	public static void actualizarMolecula(String nombreMol, String simbolo, int nro) throws ChemistryException {
+	public static void actualizarMoleculaNombre(String nombreMol, String simbolo, int nro) throws ChemistryException {
 		Connection con = null;
-
-		PreparedStatement pstId = null;
-		ResultSet rsId = null;
-
-		int idMol = 0;
+		CallableStatement cst = null;
 
 		try {
 			con = pool.getConnection();
-			// Obtenemos el id correspondiente a la molecula de ese nombre.
-			pstId = con.prepareStatement("SELECT id FROM MOLECULAS WHERE nombre=?");
-			pstId.setString(1, nombreMol);
-			rsId = pstId.executeQuery();
-			if (rsId.next()) {
-				idMol = rsId.getInt(1);
-				actualizarMolecula(idMol, simbolo, nro);
-			} else {
-				pool.undo(con);
-				throw (new ChemistryException(ChemistryError.NO_EXISTE_MOLECULA));
-			}
+			cst = con.prepareCall("{ call actualizarMoleculaNombre(?,?,?) }");
+			cst.setString(1, nombreMol);
+			cst.setString(2, simbolo);
+			cst.setInt(3, nro);
+
+			cst.execute();
 
 		} catch (SQLException e) {
-			logger.error("La transacion hay que deshacerla.");
-			pool.undo(con);
-			logger.error(e.getLocalizedMessage());
+			// TODO Auto-generated catch block
 			e.printStackTrace();
-
 		} finally {
-			logger.debug("Cerrando recursos");
+			pool.close(cst);
 			pool.close(con);
-			pool.close(pstId);
-			pool.close(rsId);
 		}
 	}
 
@@ -263,20 +167,23 @@ public class FormulasMoleculares {
 	 * @throws ChemistryException
 	 *             Excepcion
 	 */
-	public static void borrarMolecula(int id) throws ChemistryException {
+	public static void borrarMoleculaId(int id) throws ChemistryException {
 		Connection con = null;
 		CallableStatement cst = null;
-		
+
 		try {
 			con = pool.getConnection();
-			cst = con.prepareCall("{ call borrarMolecula(?) }");
+			cst = con.prepareCall("{ call borrarMoleculaId(?) }");
 			cst.setInt(1, id);
-			
+
 			cst.execute();
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			pool.close(cst);
+			pool.close(con);
 		}
 	}
 
@@ -293,23 +200,26 @@ public class FormulasMoleculares {
 	 * @throws ChemistryException
 	 *             Excepcion
 	 */
-	public static void actualizarMolecula(int id, String simbolo, int nro) throws ChemistryException {
+	public static void actualizarMoleculaId(int id, String simbolo, int nro) throws ChemistryException {
 
 		Connection con = null;
 		CallableStatement cst = null;
-		
+
 		try {
 			con = pool.getConnection();
-			cst = con.prepareCall("{ call actualizarMolecula(?,?,?) }");
+			cst = con.prepareCall("{ call actualizarMoleculaId(?,?,?) }");
 			cst.setInt(1, id);
 			cst.setString(2, simbolo);
 			cst.setInt(3, nro);
-			
+
 			cst.execute();
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			pool.close(cst);
+			pool.close(con);
 		}
 	}
 
@@ -323,7 +233,6 @@ public class FormulasMoleculares {
 	public static void bateriaPruebas() {
 
 		System.out.println("->  Script cargado con la molecula: H2O.\n\n");
-		
 
 		System.out.println("\n->  Molecula existente: H2O\n\n");
 
@@ -334,31 +243,35 @@ public class FormulasMoleculares {
 
 		ResultSet rs = null;
 		ResultSet rs1 = null;
-		
-		
+
 		System.out.println("\n->  Moleculas existentes: H2O - H2O2 \n\n");
-		
+
 		System.out.println("\n-----------------------------------------------------------------");
-		System.out.println("         - Bateria de pruebas para el caso de ACTUALIZAR -         ");
+		System.out.println("          - Bateria de pruebas para el caso de INSERTAR -          ");
 		System.out.println("-----------------------------------------------------------------\n");
-		
+
 		try {
-			actualizarMolecula(1, "H", 4);
+			String[] simbolos = {"H", "O"};
+			int[] nros = {2, 2};
+			insertarMolecula("AguaOxigenada", simbolos, nros);
 
 			con = pool.getConnection();
 			st = con.createStatement();
-			rs = st.executeQuery("SELECT * FROM Composicion where simbolo='H' AND idMolecula=1 AND nroAtomos=4");
+			rs = st.executeQuery(
+					"SELECT * FROM Moleculas where nombre='AguaOxigenada' AND pesoMolecular=38 AND formula='H2O2'");
 			if (rs.next()) {
-				System.out.println("ActualizarMolecula mediante Id se ha realizado con éxito.");
+				System.out.println(
+						"Insertar molecula AguaOxigenada con formula H2O2(ordenada alfabeticamente) se ha realizado con éxito.");
 			} else {
-				System.out.println("ActualizarMolecula mediante Id ·NO· se ha realizado con éxito.");
+				System.out.println(
+						"Insertar molecula AguaOxigenada con formula H2O2(ordenada alfabeticamente) ·NO· se ha realizado con éxito");
 			}
 
 		} catch (ChemistryException e) {
-			if (e.getError() == ChemistryError.NO_EXISTE_MOLECULA) {
-				System.out.println("ActualizarMolecula mediante Id. OK. ");
+			if (e.getError() == ChemistryError.FORMULA_YA_EXISTENTE) {
+				System.out.println("Insertar molecula con formula existente. OK. ");
 			} else {
-				System.out.println("ActualizarMolecula mediante Id. MAL. ");
+				System.out.println("Insertar molecula con formula existente. MAL. ");
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -370,12 +283,42 @@ public class FormulasMoleculares {
 		}
 
 		System.out.println("\n-----------------------------------------------------------------");
+		System.out.println("         - Bateria de pruebas para el caso de ACTUALIZAR -         ");
+		System.out.println("-----------------------------------------------------------------\n");
+
+//		try {
+//			actualizarMoleculaId(1, "H", 4);
+//
+//			con = pool.getConnection();
+//			st = con.createStatement();
+//			rs = st.executeQuery("SELECT * FROM Composicion where simbolo='H' AND idMolecula=1 AND nroAtomos=4");
+//			if (rs.next()) {
+//				System.out.println("ActualizarMolecula mediante Id se ha realizado con éxito.");
+//			} else {
+//				System.out.println("ActualizarMolecula mediante Id ·NO· se ha realizado con éxito.");
+//			}
+//
+//		} catch (ChemistryException e) {
+//			if (e.getError() == ChemistryError.NO_EXISTE_MOLECULA) {
+//				System.out.println("ActualizarMolecula mediante Id. OK. ");
+//			} else {
+//				System.out.println("ActualizarMolecula mediante Id. MAL. ");
+//			}
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} finally {
+//			pool.close(st);
+//			pool.close(rs);
+//			pool.close(con);
+//		}
+
+		System.out.println("\n-----------------------------------------------------------------");
 		System.out.println("           - Bateria de pruebas para el caso de BORRAR -           ");
 		System.out.println("-----------------------------------------------------------------\n");
 
-		
 //		try {
-//			borrarMolecula(1);
+//			borrarMoleculaId(1);
 //
 //			con = pool.getConnection();
 //			st = con.createStatement();
@@ -391,7 +334,7 @@ public class FormulasMoleculares {
 //			if (e.getError() == ChemistryError.NO_EXISTE_MOLECULA) {
 //				System.out.println("Borrar molecula mediante Id si no existe. OK. ");
 //			} else {
-//				System.out.println("Borrar molecula mediante Id si no existe. MAL.		 ");
+//				System.out.println("Borrar molecula mediante Id si no existe. MAL. ");
 //			}
 //		} catch (SQLException e) {
 //			// TODO Auto-generated catch block
@@ -401,10 +344,9 @@ public class FormulasMoleculares {
 //			pool.close(rs);
 //			pool.close(con);
 //		}
-		
-		
+
 //		try {
-//			borrarMolecula("Agua");
+//			borrarMoleculaNombre("Agua");
 //
 //			con = pool.getConnection();
 //			st = con.createStatement();
@@ -429,7 +371,7 @@ public class FormulasMoleculares {
 //			pool.close(rs);
 //			pool.close(con);
 //		}
-		
+
 	}
 
 	/**
@@ -453,9 +395,9 @@ public class FormulasMoleculares {
 
 		logger.info("Comienzo Ejecución");
 
-		//Cargamos el script.
+		// Cargamos el script.
 		System.out.println("Cargando de nuevo el Script...");
-		ExecuteScript.run("./sql/sp-formulas.sql");
+		ExecuteScript.run("./sql/sp_formulas.sql");
 	}
 
 }

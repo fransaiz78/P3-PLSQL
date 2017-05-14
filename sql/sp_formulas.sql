@@ -40,11 +40,12 @@ insert into Composicion(simbolo, idMolecula, nroAtomos) values('O', seq_molId.cu
 commit;
 
 --Creamos los procedimientos.
-
+CREATE OR REPLACE TYPE NESTED_TYPE IS TABLE OF VARCHAR2(20);
+/
 ------------------------------------------------------------------------------------------------------------------------------
 --- BORRAR POR ID
 ------------------------------------------------------------------------------------------------------------------------------
-create or replace procedure borrarMolecula(id_mol INTEGER) is
+create or replace procedure borrarMoleculaId(id_mol INTEGER) is
   
   MOLECULA_NO_EXISTE  exception;
   PRAGMA EXCEPTION_INIT(MOLECULA_NO_EXISTE, -20000);
@@ -75,7 +76,7 @@ end;
 ------------------------------------------------------------------------------------------------------------------------------
 --- BORRAR POR NOMBRE
 ------------------------------------------------------------------------------------------------------------------------------
-create or replace procedure borrarMolecula(nombre_mol varchar) is
+create or replace procedure borrarMoleculaNombre(nombre_mol varchar) is
   
   v_id_mol Integer;
   
@@ -108,7 +109,7 @@ end;
 ------------------------------------------------------------------------------------------------------------------------------
 --- ACTUALIZAR POR ID
 ------------------------------------------------------------------------------------------------------------------------------
-create or replace procedure actualizarMolecula(p_id Integer, p_simbolo varchar, p_nro Integer) is
+create or replace procedure actualizarMoleculaId(p_id Integer, p_simbolo varchar, p_nro Integer) is
   v_simbolo varchar(20);
   v_id_mol Integer;
   v_nroAtomos Integer;
@@ -209,7 +210,7 @@ end;
 ------------------------------------------------------------------------------------------------------------------------------
 --- ACTUALIZAR POR NOMBRE
 ------------------------------------------------------------------------------------------------------------------------------
-create or replace procedure actualizarMolecula(p_nombre varchar, p_simbolo varchar, p_nro Integer) is
+create or replace procedure actualizarMoleculaNombre(p_nombre varchar, p_simbolo varchar, p_nro Integer) is
   v_simbolo varchar(20);
   v_id_mol Integer;
   v_nombre_mol varchar(20);
@@ -278,6 +279,7 @@ begin
   
   
   --Tambien se puede manejar el cursor con un bucle for.
+  --Calculamos el pesoMolecular y concatenamos la formula.
   for v_elem in c_joinElemComp loop
     v_pesoMolecularTotal := v_pesomoleculartotal + (v_elem.pesoAtomico*v_elem.nroAtomos);
     v_formulaFinal := v_formulaFinal || v_elem.simbolo;
@@ -315,40 +317,88 @@ end;
 ------------------------------------------------------------------------------------------------------------------------------
 --- INSERTAR
 ------------------------------------------------------------------------------------------------------------------------------
-create or replace procedure insertarMolecula(p_nombre varchar, p_simbolos varray of varchar, p_nros varray of Integer) is
+
+
+create or replace procedure insertarMolecula(p_nombre varchar, p_simbolos NESTED_TYPE, p_nros NESTED_TYPE) is
   
-  
+  v_nombre_mol varchar(20);
+  v_formulaFinal varchar(20):='';
+  v_pesoMolecularTotal Integer:=0;
+  v_pesoMolecular Integer;
+  v_consulta_formula Moleculas.formula%TYPE;
   
   TAMAÑOS_INADECUADOS  exception;
-  NOMBRE_DE_MOLECULA_YA_EXISTENTE exception;
+  NOMBRE_YA_EXISTENTE exception;
   NO_EXISTE_ATOMO  exception;
   FORMULA_YA_EXISTENTE exception;
   
-  PRAGMA EXCEPTION_INIT(FORMULA_YA_EXISTENTE, -20000);
-  PRAGMA EXCEPTION_INIT(MOLECULA_NO_CONTIENE_SIMBOLO, -20001);
-  PRAGMA EXCEPTION_INIT(NOMBRE_INEXISTENTE, -20002);
+  PRAGMA EXCEPTION_INIT(TAMAÑOS_INADECUADOS, -20000);
+  PRAGMA EXCEPTION_INIT(NOMBRE_YA_EXISTENTE, -20001);
+  PRAGMA EXCEPTION_INIT(NO_EXISTE_ATOMO, -20002);
+  PRAGMA EXCEPTION_INIT(FORMULA_YA_EXISTENTE, -20003);
+  
+  --v1 array_type;
 
 begin
     
   if(p_simbolos.count != p_nros.count) then
     raise TAMAÑOS_INADECUADOS;
   end if;
+
+  --Comprobamos que el nombre de la molecula a insertar existe
+  SELECT count(nombre) into v_nombre_mol FROM Moleculas WHERE nombre=p_nombre;
+  if(v_nombre_mol > 0) then
+    raise NOMBRE_YA_EXISTENTE;
+  end if;
   
+  --Calcular la formula y sacar pesos.
+  FOR i IN p_simbolos.FIRST .. p_simbolos.LAST
+  LOOP
+    --concatenamos la formula cada iteracion.
+    v_formulaFinal := v_formulaFinal || p_simbolos(i);
+    if(p_nros(i)>1) then
+      v_formulaFinal := v_formulaFinal || p_nros(i);
+    end if;
+    
+    --sacamos el pesoMolecular total.
+    select pesoAtomico into v_pesoMolecular from Elementos Where simbolo=p_simbolos(i);
+    v_pesoMolecularTotal := v_pesoMolecularTotal + v_pesoMolecular*p_nros(i);
   
+  END LOOP;
+  
+  --Comprobamos que la formula ya existe.
+  select count(formula) into v_consulta_formula from Moleculas where formula=v_formulaFinal;
+  if(v_consulta_formula>0) then 
+    raise FORMULA_YA_EXISTENTE;
+  end if;
+  
+  --Una vez hechas las comprobaciones insertamos.
+  
+  --Insertamos en Moleculas.
+  INSERT INTO Moleculas(id, nombre, pesoMolecular, formula) values(seq_molId.nextval, p_nombre, v_pesoMolecularTotal, v_formulaFinal);
+  
+  --Insertamos en composicion.
+  
+  FOR i IN p_simbolos.FIRST .. p_simbolos.LAST
+  LOOP
+    INSERT INTO Composicion(simbolo, idMolecula, nroAtomos) values(p_simbolos(i), seq_molId.currval, p_nros(i));
+  END LOOP;
+  
+  commit;
 
 exception
   when no_data_found then
     rollback;
     dbms_output.put_line('->Not found.');
-  when NOMBRE_INEXISTENTE then
+  when TAMAÑOS_INADECUADOS then
     rollback;
-    dbms_output.put_line('->No existe molecula con ese id.');
-  when MOLECULA_NO_CONTIENE_SIMBOLO then
+    dbms_output.put_line('->La longitud de los arrays es diferente.');
+  when NOMBRE_YA_EXISTENTE then
     rollback;
-    dbms_output.put_line('->Molecula no contiene simbolo.'); 
+    dbms_output.put_line('->El nombre de la molecula ya existe.');
   when FORMULA_YA_EXISTENTE then
     rollback;
-    dbms_output.put_line('->Molecula con formula existente.');
+    dbms_output.put_line('->La formula de esa molecula ya existe.');
 
 end;
 /
@@ -359,13 +409,30 @@ end;
 --Poner el serveroutput a on
 set serveroutput on
 
+declare
+  v1 Nested_type;
+  v2 Nested_type;
 begin
 
   dbms_output.put_line('Pruebas:');
-  --borrarMolecula(1);
-  --borrarMolecula('Agua');
-  --actualizarMolecula(1,'O',2);
-  --actualizarMolecula('Agua','O',2);
+  
+  v1:=Nested_type();
+  v1.extend(2);
+  
+  v1(1):='H';
+  v1(2):='O';
+
+  v2:=Nested_type();
+  v2.extend(2);
+  
+  v2(1):=2;
+  v2(2):=2;
+ 
+  --borrarMoleculaId(1);
+  --borrarMoleculaNombre('Agua');
+  --actualizarMoleculaId(1,'O',2);
+  --actualizarMoleculaNombre('Agua','O',2);
+  --insertarMolecula('AguaOxigenada',v1,v2);
   
 end;
 /
