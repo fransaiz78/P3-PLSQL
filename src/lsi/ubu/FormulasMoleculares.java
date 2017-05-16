@@ -3,7 +3,6 @@ package lsi.ubu;
 import java.io.IOException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -18,9 +17,11 @@ import oracle.sql.ARRAY;
 import oracle.sql.ArrayDescriptor;
 
 /**
- * Clase en el que se realizan las transaciones.
+ * Clase en el que se realizan los metodos java que llaman a los procedimientos del sql. 
+ * Incluye tambien la bateria de pruebas.
  * 
- * @author Francisco Saiz Güemes - Mario Santamaria Arias.
+ * @author Francisco Saiz Güemes.
+ * @author Mario Santamaria Arias
  *
  */
 public class FormulasMoleculares {
@@ -35,12 +36,17 @@ public class FormulasMoleculares {
 	 */
 	private static Logger logger;
 
+	/***
+	 * ruta donde se encuentra el archivo .sql.
+	 */
+	private static final String rutaArchivo = "./sql/sp_formulas.sql"; 
+	
 	/**
-	 * Main donde se realizaran las inicializaciones y la bateria de pruebas.
+	 * Main donde se realizaran las inicializaciones y la llamada correspondiente a los metodos de la bateria de pruebas.
 	 * 
 	 * @param args
 	 *            argumentos
-	 */
+	 */	
 	public static void main(String[] args) {
 
 		try {
@@ -101,7 +107,7 @@ public class FormulasMoleculares {
 	 *            Array de String que contiene los simbolos
 	 * @param nros
 	 *            Array de int que contiene los nros
-	 * @throws ChemistryException
+	 * @throws SQLException
 	 *             Excepcion
 	 */
 	public static void insertarMolecula(String nombre, String[] simbolos, int[] nros) throws SQLException {
@@ -135,7 +141,7 @@ public class FormulasMoleculares {
 	 * 
 	 * @param nombreMol
 	 *            String que representa el nombre
-	 * @throws ChemistryException
+	 * @throws SQLException
 	 *             Excepcion
 	 */
 	public static void borrarMoleculaNombre(String nombreMol) throws SQLException {
@@ -164,7 +170,7 @@ public class FormulasMoleculares {
 	 *            String que representa el simbolo
 	 * @param nro
 	 *            Entero que representa el nro
-	 * @throws ChemistryException
+	 * @throws SQLException
 	 *             Excepcion
 	 */
 	public static void actualizarMoleculaNombre(String nombreMol, String simbolo, int nro) throws SQLException {
@@ -191,7 +197,7 @@ public class FormulasMoleculares {
 	 * 
 	 * @param id
 	 *            Entero que representa el id
-	 * @throws ChemistryException
+	 * @throws SQLException
 	 *             Excepcion
 	 */
 	public static void borrarMoleculaId(int id) throws SQLException {
@@ -221,7 +227,7 @@ public class FormulasMoleculares {
 	 * @param nro
 	 *            Entero que representa el nro
 	 * 
-	 * @throws ChemistryException
+	 * @throws SQLException
 	 *             Excepcion
 	 */
 	public static void actualizarMoleculaId(int id, String simbolo, int nro) throws SQLException {
@@ -244,6 +250,15 @@ public class FormulasMoleculares {
 		}
 	}
 
+	/**
+	 * Metodo donde se realizan las pruebas correspondientes al caso insertar.
+	 * 
+	 * @param con Conexion
+	 * @param st Statement
+	 * @param rs ResultSet
+	 * @throws SQLException Excepcion
+	 * 
+	 */
 	public static void pruebasInsertar(Connection con, Statement st, ResultSet rs) throws SQLException {
 
 		try {
@@ -372,6 +387,16 @@ public class FormulasMoleculares {
 		}
 	}
 
+	
+	/**
+	 * Metodo donde se realizan las pruebas correspondientes al caso de actualizar tanto para id como nombre.
+	 * 
+	 * @param con Conexion
+	 * @param st Statement
+	 * @param rs ResultSet
+	 * @throws SQLException Excepcion
+	 * 
+	 */
 	public static void pruebasActualizar(Connection con, Statement st, ResultSet rs) throws SQLException {
 		
 		try{
@@ -518,6 +543,15 @@ public class FormulasMoleculares {
 		}
 	}
 	
+	/**
+	 * Metodo donde se realizan las pruebas correspondientes al caso borrar tanto por id como nombre.
+	 * 
+	 * @param con Conexion
+	 * @param st Statement
+	 * @param rs ResultSet
+	 * @throws SQLException Excepcion
+	 * 
+	 */
 	public static void pruebasBorrar(Connection con, Statement st, ResultSet rs) throws SQLException {
 		try{
 			borrarMoleculaId(1);
@@ -646,7 +680,7 @@ public class FormulasMoleculares {
 
 		// Cargamos el script.
 		System.out.println("Cargando de nuevo el Script...");
-		ExecuteScript.run("./sql/sp_formulas.sql");
+		ExecuteScript.run(rutaArchivo);
 	}
 
 }

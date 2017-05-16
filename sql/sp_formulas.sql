@@ -1,3 +1,5 @@
+--Autores: Francisco Saiz Guemes - Mario Santamaria Arias
+
 DROP TABLE Elementos cascade constraint;
 DROP TABLE Moleculas cascade constraint;
 DROP TABLE Composicion cascade constraint;
@@ -98,7 +100,7 @@ begin
   
   commit;
 exception
-  when Others then
+  when OTHERS then
     rollback;
     raise_application_error(-20000, 'Nombre de la molecula no existe.');
 end;
@@ -163,7 +165,7 @@ begin
     end if;
     
     
-    --Tambien se puede manejar el cursor con un bucle for.
+    --Calculamos el pesoMolecular y concatenamos la formula.
     for v_elem in c_joinElemComp loop
       v_pesoMolecularTotal := v_pesomoleculartotal + (v_elem.pesoAtomico*v_elem.nroAtomos);
       v_formulaFinal := v_formulaFinal || v_elem.simbolo;
@@ -186,7 +188,7 @@ begin
   end;
 
 exception
-  when others then 
+  when OTHERS then 
     rollback;
     raise_application_error( SQLCODE, SQLERRM );
 
@@ -243,7 +245,6 @@ begin
     end loop;
     close c_nroSimbolo;
     
-    
     --Una vez que sabemos que la formula no existia, actualizamos en Composicion.
     UPDATE Composicion set nroAtomos=p_nro WHERE idMolecula=v_id_mol and simbolo=p_simbolo;
     --Comprobamos si el simbolo existia o no existia
@@ -251,8 +252,6 @@ begin
       raise MOLECULA_NO_CONTIENE_SIMBOLO;
     end if;
     
-    
-    --Tambien se puede manejar el cursor con un bucle for.
     --Calculamos el pesoMolecular y concatenamos la formula.
     for v_elem in c_joinElemComp loop
       v_pesoMolecularTotal := v_pesomoleculartotal + (v_elem.pesoAtomico*v_elem.nroAtomos);
@@ -266,7 +265,6 @@ begin
     UPDATE Moleculas set pesoMolecular=v_pesoMolecularTotal, formula=v_formulafinal WHERE id=v_id_mol;
     
     commit;
-    
   exception
     when no_data_found then
       raise_application_error(-20002, 'No existe molecula con ese nombre.' );
@@ -274,11 +272,10 @@ begin
       raise_application_error(-20001, 'Molecula no contiene simbolo.' );
     when FORMULA_YA_EXISTENTE then
       raise_application_error(-20000, 'Molecula con formula existente.' );
-  
   end;
 
 exception
-  when others then
+  when OTHERS then
     rollback;
     raise_application_error(SQLCODE, SQLERRM );
 end;
@@ -287,7 +284,6 @@ end;
 ------------------------------------------------------------------------------------------------------------------------------
 --- INSERTAR
 ------------------------------------------------------------------------------------------------------------------------------
-
 
 create or replace procedure insertarMolecula(p_nombre varchar, p_simbolos in out NESTED_TYPE, p_nros in out NESTED_TYPE) is
   
@@ -317,7 +313,7 @@ begin
       raise TAMAÑOS_INADECUADOS;
     end if;
   
-    --Ordenamos los arrays.
+    --Ordenamos los arrays a traves del algoritmo de la burbuja.
     FOR i IN p_simbolos.FIRST .. p_simbolos.LAST LOOP
       FOR j IN p_simbolos.FIRST .. p_simbolos.LAST-1 LOOP
         if( p_simbolos(j) > p_simbolos(j+1) ) then
@@ -332,13 +328,14 @@ begin
         end if;
       END LOOP;
     END LOOP;
+    
     --Comprobamos que el nombre de la molecula a insertar existe
     SELECT count(nombre) into v_nombre_mol FROM Moleculas WHERE nombre=p_nombre;
     if(v_nombre_mol > 0) then
       raise NOMBRE_YA_EXISTENTE;
     end if;
     
-    --Calcular la formula y sacar pesos.
+    --Calcular la formula y calcular el peso molecular.
     FOR i IN p_simbolos.FIRST .. p_simbolos.LAST
     LOOP
       --concatenamos la formula cada iteracion.
@@ -347,7 +344,7 @@ begin
         v_formulaFinal := v_formulaFinal || p_nros(i);
       end if;
       
-      --sacamos el pesoMolecular total.
+      --calculamos el pesoMolecular total.
       select pesoAtomico into v_pesoMolecular from Elementos Where simbolo=p_simbolos(i);
       v_pesoMolecularTotal := v_pesoMolecularTotal + v_pesoMolecular*p_nros(i);
     
@@ -363,7 +360,6 @@ begin
     END LOOP;
     
     commit;
-    
     exception
       when TAMAÑOS_INADECUADOS then
         raise_application_error(-20000, 'Tamaño de los arrays inadecuado.');
@@ -377,15 +373,23 @@ begin
     
 exception
   
-  when others then 
+  when OTHERS then 
     rollback;
     raise_application_error( SQLCODE, SQLERRM );
 
 end;
 /
 
+--Comentaremos y descomentaremos en funcion de su ejecucion desde java o developer.
 exit;
 
+--Pruebas de que los procedimientos funcionan correctamente.
+
+--Para las pruebas en Java hemos considerado oportuno empezar las pruebas con las tablas Moleculas y Composicion vacías, pero
+--para probarlo desde aqui, deberiamos descomentar los inserts correspondientes a las tablas Moleculas y Composicion 
+--situados encima de la implementacion de los procedimientos.
+
+/*
 --Poner el serveroutput a on
 set serveroutput on
 
@@ -407,24 +411,23 @@ begin
   
   v2(1):=1;
   v2(2):=2;
- 
-  --borrarMoleculaId(15);
+  
+  --borrarMoleculaId(1);
   --borrarMoleculaNombre('Agua');
-  --actualizarMoleculaId(1,'H',2);
+  --actualizarMoleculaId(1,'H',4);
   --actualizarMoleculaNombre('Agua','O',7);
   --insertarMolecula('AguaOxigenada',v1,v2);
   
 end;
 /
 
-
-
-
 exit;
+*/
 
---select * FROM Moleculas
---select * FROM Composicion
---select * FROM Elementos
-
+/*
+select * FROM Moleculas
+select * FROM Composicion
+select * FROM Elementos
+*/
 
 
