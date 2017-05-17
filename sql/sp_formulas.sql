@@ -34,9 +34,11 @@ CREATE SEQUENCE seq_molId;
 insert into Elementos(simbolo, nombre, pesoAtomico) values ('H','Hidrogeno', 1);
 insert into Elementos(simbolo, nombre, pesoAtomico) values('O','Oxigeno', 18);
 
+--Comenzamos las pruebas con las tablas Moleculas y Composicion vacias
+
 --insert into Moleculas(id, nombre, pesoMolecular, formula) values(seq_molId.nextval, 'Agua', 20, 'H2O');
 
---insert into Composicion(simbolo, idMolecula, nroAtomos) values('H', seq_molId.currval, 2);
+--into Composicion(simbolo, idMolecula, nroAtomos) values('H', seq_molId.currval, 2);
 --insert into Composicion(simbolo, idMolecula, nroAtomos) values('O', seq_molId.currval, 1);
 
 commit;
@@ -297,12 +299,10 @@ create or replace procedure insertarMolecula(p_nombre varchar, p_simbolos in out
   v_num_aux integer;
   
   TAMAÑOS_INADECUADOS  exception;
-  NOMBRE_YA_EXISTENTE exception;
   NO_EXISTE_ATOMO  exception;
   --FORMULA_YA_EXISTENTE exception; Usamos la DUP_VAL_ON_INDEX
   
   PRAGMA EXCEPTION_INIT(TAMAÑOS_INADECUADOS, -20000);
-  PRAGMA EXCEPTION_INIT(NOMBRE_YA_EXISTENTE, -20001);
   PRAGMA EXCEPTION_INIT(NO_EXISTE_ATOMO, -20002);
   --PRAGMA EXCEPTION_INIT(FORMULA_YA_EXISTENTE, -20003); Usamos la DUP_VAL_ON_INDEX
   
@@ -328,12 +328,6 @@ begin
         end if;
       END LOOP;
     END LOOP;
-    
-    --Comprobamos que el nombre de la molecula a insertar existe
-    SELECT count(nombre) into v_nombre_mol FROM Moleculas WHERE nombre=p_nombre;
-    if(v_nombre_mol > 0) then
-      raise NOMBRE_YA_EXISTENTE;
-    end if;
     
     --Calcular la formula y calcular el peso molecular.
     FOR i IN p_simbolos.FIRST .. p_simbolos.LAST
@@ -363,10 +357,8 @@ begin
     exception
       when TAMAÑOS_INADECUADOS then
         raise_application_error(-20000, 'Tamaño de los arrays inadecuado.');
-      when NOMBRE_YA_EXISTENTE then
-        raise_application_error(-20001, 'Nombre de la molecula ya existente.');
       when DUP_VAL_ON_INDEX then
-        raise_application_error(-20003, 'Ya existe molecula con esa formula.');
+        raise_application_error(-20003, 'Ya existe la correspondiente molecula.');
       when NO_DATA_FOUND then
         raise_application_error(-20002, 'No existe atomo.');
     end;
@@ -380,16 +372,11 @@ exception
 end;
 /
 
---Comentaremos y descomentaremos en funcion de su ejecucion desde java o developer.
+--Comentaremos y descomentaremos en funcion de su ejecucion desde java o developer. (Java sin comentar)
 exit;
 
 --Pruebas de que los procedimientos funcionan correctamente.
 
---Para las pruebas en Java hemos considerado oportuno empezar las pruebas con las tablas Moleculas y Composicion vacías, pero
---para probarlo desde aqui, deberiamos descomentar los inserts correspondientes a las tablas Moleculas y Composicion 
---situados encima de la implementacion de los procedimientos.
-
-/*
 --Poner el serveroutput a on
 set serveroutput on
 
@@ -409,20 +396,21 @@ begin
   v2:=Nested_type();
   v2.extend(2);
   
-  v2(1):=1;
+  v2(1):=2;
   v2(2):=2;
   
+  -- Tendriamos que comentar y descomentar la llamada a los procedimientos para ir probandolos.
+  
+  insertarMolecula('Agua',v1,v2);
   --borrarMoleculaId(1);
   --borrarMoleculaNombre('Agua');
   --actualizarMoleculaId(1,'H',4);
   --actualizarMoleculaNombre('Agua','O',7);
-  --insertarMolecula('AguaOxigenada',v1,v2);
   
 end;
 /
 
 exit;
-*/
 
 /*
 select * FROM Moleculas

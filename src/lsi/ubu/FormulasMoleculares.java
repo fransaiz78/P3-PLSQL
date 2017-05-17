@@ -52,7 +52,7 @@ public class FormulasMoleculares {
 		try {
 			inicializaciones();
 
-			System.out.println("->  Script cargado correctamente.\n\n");
+			System.out.println("->  Script cargado correctamente.\n");
 
 			Connection con = null;
 			Statement st = null;
@@ -70,7 +70,7 @@ public class FormulasMoleculares {
 			//Comenzamos las pruebas de actualizar con las moleculas:
 			// 1 - Agua - H2O
 			// 2 - AguaOxigenada - H2O2
-			System.out.println("\n->  Moleculas existentes: \n\t·1 - Agua - H2O\n\t·2 - AguaOxigenada - H2O2 \n\n");
+			System.out.println("\n->  Moleculas existentes: \n\t·1 - Agua - H2O\n\t·2 - AguaOxigenada - H2O2 \n");
 
 			System.out.println("\n-----------------------------------------------------------------");
 			System.out.println("         - Bateria de pruebas para el caso de ACTUALIZAR -         ");
@@ -78,14 +78,14 @@ public class FormulasMoleculares {
 
 			pruebasActualizar(con, st, rs);
 			
-			System.out.println("\n-----------------------------------------------------------------");
-			System.out.println("          - Bateria de pruebas para el caso de BORRAR -            ");
-			System.out.println("-----------------------------------------------------------------\n");
-
 			//Comenzamos las pruebas de borrar con las moleculas:
 			// 1 - Agua - H2O
 			// 2 - AguaOxigenada - H2O2
-			System.out.println("\n->  Moleculas existentes: \n\t·1 - Agua - H2O\n\t·2 - AguaOxigenada - H2O2 \n\n");
+			System.out.println("\n->  Moleculas existentes: \n\t·1 - Agua - H2O\n\t·2 - AguaOxigenada - H2O2 \n");
+			
+			System.out.println("\n-----------------------------------------------------------------");
+			System.out.println("          - Bateria de pruebas para el caso de BORRAR -            ");
+			System.out.println("-----------------------------------------------------------------\n");
 			
 			pruebasBorrar(con, st, rs);
 			
@@ -97,7 +97,6 @@ public class FormulasMoleculares {
 		}
 	}
 
-	// Nº 1
 	/**
 	 * Transacion nº1. Insertar molecula.
 	 * 
@@ -279,7 +278,7 @@ public class FormulasMoleculares {
 			}
 
 		} catch (SQLException e) {
-			System.out.println("Insertar molecula MAL");
+			System.out.println("Insertar molecula lanza excepcion cuando no deberia.");
 
 		} finally {
 			pool.close(st);
@@ -305,7 +304,7 @@ public class FormulasMoleculares {
 			}
 
 		} catch (SQLException e) {
-			System.out.println("Insertar molecula MAL");
+			System.out.println("Insertar molecula lanza excepcion cuando no deberia.");
 
 		} finally {
 			pool.close(st);
@@ -370,12 +369,12 @@ public class FormulasMoleculares {
 
 		try {
 			String[] simbolos = { "H", "O" };
-			int[] nros = { 2, 1 };
+			int[] nros = { 3, 1 };
 			insertarMolecula("Agua", simbolos, nros);
 
 		} catch (SQLException e) {
 
-			if (e.getErrorCode() == 20001)
+			if (e.getErrorCode() == 20003)
 				System.out.println("Insertar molecula con nombre ya existente. OK.");
 			else
 				System.out.println("Insertar molecula con nombre ya existente. MAL.");
@@ -590,36 +589,8 @@ public class FormulasMoleculares {
 			pool.close(con);
 		}
 
-		
-		System.out.println("\n->  Insertamos una nueva molecula para poder probar el borrado por nombre:");
-		try {
-			String[] simbolos = { "H", "O" };
-			int[] nros = { 2, 1 };
-			insertarMolecula("Agua", simbolos, nros);
-
-			con = pool.getConnection();
-			st = con.createStatement();
-			rs = st.executeQuery("SELECT * FROM Moleculas where nombre='Agua' AND pesoMolecular=20 AND formula='H2O'");
-			if (rs.next()) {
-				System.out.println(
-						"Insertar molecula AguaOxigenada con formula H2O(ordenada alfabeticamente) se ha realizado con éxito.\n");
-			} else {
-				System.out.println(
-						"Insertar molecula AguaOxigenada con formula H2O(ordenada alfabeticamente) ·NO· se ha realizado con éxito.\n");
-			}
-			
-		} catch (SQLException e) {
-
-			System.out.println("Insertar molecula lanza excepcion cuando no deberia.");
-
-		} finally {
-			pool.close(st);
-			pool.close(rs);
-			pool.close(con);
-		}
-
 		try{
-			borrarMoleculaNombre("Agua");
+			borrarMoleculaNombre("AguaOxigenada");
 			
 			con = pool.getConnection();
 			st = con.createStatement();
@@ -640,7 +611,7 @@ public class FormulasMoleculares {
 		}
 
 		try{
-			borrarMoleculaNombre("Agua");
+			borrarMoleculaNombre("AguaOxigenada");
 			
 		} catch (SQLException e) {
 			
